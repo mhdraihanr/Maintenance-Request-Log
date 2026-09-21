@@ -7,12 +7,13 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node --env-file=.env dist/index.js",
     "typecheck": "tsc --noEmit",
-    "migrate": "tsx src/db/migrate.ts",
-    "seed": "tsx src/db/seed.ts"
+    "migrate": "tsx --env-file=.env src/db/migrate.ts",
+    "seed": "tsx --env-file=.env src/db/seed.ts",
+    "db:ping": "tsx --env-file=.env src/db/ping.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
