@@ -23,6 +23,7 @@ dist/
 build/
 .vite/
 *.tsbuildinfo
+!api/db/migrations/*.sql
 
 # ---- Tests & coverage ----
 coverage/
