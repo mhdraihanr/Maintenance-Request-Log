@@ -1,0 +1,37 @@
+# ---- Take-home test materials (private, not part of the submission) ----
+Take-Home-Test-Full-Stack-Engineer.md
+UI_UX_REFERENCE.md
+ui-ux-reference.png
+
+# ---- Environment / secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Node ----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Build output ----
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# ---- Tests & coverage ----
+coverage/
+.nyc_output/
+
+# ---- Logs ----
+*.log
+logs/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
