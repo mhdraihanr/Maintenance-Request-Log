@@ -3,6 +3,10 @@ Take-Home-Test-Full-Stack-Engineer.md
 UI_UX_REFERENCE.md
 ui-ux-reference.png
 
+# ---- Working notes (local scratch, not submitted) ----
+docs/steps/
+docs/ROADMAP.md
+
 # ---- Environment / secrets ----
 .env
 .env.*
