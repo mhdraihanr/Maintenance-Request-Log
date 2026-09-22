@@ -398,6 +398,277 @@ await check("UPDATE hanya menyentuh kolom yang dikirim", async () => {
   assert.doesNotMatch(updates[0]!, /reviewed_/);
 });
 
+console.log("\nreview — approve / reject");
+
+await check(
+  "supervisor approve request submitted → UPDATE tiga kolom sekaligus",
+  async () => {
+    const updates: Array<{ text: string; params: unknown[] }> = [];
+    const query = async (text: string, params: unknown[] = []) => {
+      if (text.includes("UPDATE")) {
+        updates.push({ text, params });
+        return { rows: [], rowCount: 1 } as never;
+      }
+      if (text.includes("count(*)"))
+        return { rows: [{ total: 1 }], rowCount: 1 } as never;
+      return { rows: [row()], rowCount: 1 } as never;
+    };
+    const svc = makeRequestService({ query: query as never });
+
+    await svc.review(
+      supervisor,
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "approved",
+    );
+
+    assert.equal(updates.length, 1);
+    // Status, reviewed_by, dan reviewed_at harus satu statement.
+    assert.match(
+      updates[0]!.text,
+      /SET status = \$1, reviewed_by = \$2, reviewed_at = now\(\)/,
+    );
+    assert.deepEqual(updates[0]!.params, [
+      "approved",
+      OTHER,
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    ]);
+  },
+);
+
+await check(
+  "reject juga menyetel tiga kolom, dengan status rejected",
+  async () => {
+    const updates: string[] = [];
+    let captured: unknown[] = [];
+    const query = async (text: string, params: unknown[] = []) => {
+      if (text.includes("UPDATE")) {
+        updates.push(text);
+        captured = params;
+        return { rows: [], rowCount: 1 } as never;
+      }
+      return { rows: [row()], rowCount: 1 } as never;
+    };
+    const svc = makeRequestService({ query: query as never });
+
+    await svc.review(
+      supervisor,
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "rejected",
+    );
+
+    assert.equal(updates.length, 1);
+    assert.equal(captured[0], "rejected");
+  },
+);
+
+await check("operator approve → FORBIDDEN 403", async () => {
+  const svc = makeRequestService({ query: recorder([row()]).query as never });
+
+  await assert.rejects(
+    () =>
+      svc.review(operator, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "approved"),
+    (err: unknown) =>
+      err instanceof AppError && err.status === 403 && err.code === "FORBIDDEN",
+  );
+});
+
+await check(
+  "supervisor approve yang sudah approved → 409 ALREADY_REVIEWED",
+  async () => {
+    const svc = makeRequestService({
+      query: recorder([row({ status: "approved", reviewed_by: OTHER })])
+        .query as never,
+    });
+
+    await assert.rejects(
+      () =>
+        svc.review(
+          supervisor,
+          "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "approved",
+        ),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.status === 409 &&
+        err.code === "ALREADY_REVIEWED",
+    );
+  },
+);
+
+await check("supervisor reject yang sudah rejected → 409 juga", async () => {
+  const svc = makeRequestService({
+    query: recorder([row({ status: "rejected", reviewed_by: OTHER })])
+      .query as never,
+  });
+
+  await assert.rejects(
+    () =>
+      svc.review(
+        supervisor,
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "rejected",
+      ),
+    (err: unknown) => err instanceof AppError && err.status === 409,
+  );
+});
+
+await check(
+  "admin approve yang sudah approved → DIIZINKAN (jalur koreksi)",
+  async () => {
+    let updated = false;
+    const query = async (text: string) => {
+      if (text.includes("UPDATE")) {
+        updated = true;
+        return { rows: [], rowCount: 1 } as never;
+      }
+      return {
+        rows: [row({ status: "approved", reviewed_by: OTHER })],
+        rowCount: 1,
+      } as never;
+    };
+    const svc = makeRequestService({ query: query as never });
+
+    await svc.review(admin, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "rejected");
+
+    assert.equal(updated, true);
+  },
+);
+
+await check("admin bisa membalik approved menjadi rejected", async () => {
+  const captured: unknown[] = [];
+  const query = async (text: string, params: unknown[] = []) => {
+    if (text.includes("UPDATE")) {
+      captured.push(...params);
+      return { rows: [], rowCount: 1 } as never;
+    }
+    return {
+      rows: [row({ status: "approved", reviewed_by: OTHER })],
+      rowCount: 1,
+    } as never;
+  };
+  const svc = makeRequestService({ query: query as never });
+
+  await svc.review(admin, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "rejected");
+
+  assert.equal(captured[0], "rejected");
+  assert.equal(captured[1], "33333333-3333-4333-8333-333333333333");
+});
+
+await check(
+  "review id yang tidak ada → NOT_FOUND 404 (bukan 403)",
+  async () => {
+    const svc = makeRequestService({ query: recorder([]).query as never });
+
+    await assert.rejects(
+      () =>
+        svc.review(
+          supervisor,
+          "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "approved",
+        ),
+      (err: unknown) =>
+        err instanceof AppError &&
+        err.status === 404 &&
+        err.code === "NOT_FOUND",
+    );
+  },
+);
+
+await check(
+  "review TIDAK menyentuh description/priority/machine_id",
+  async () => {
+    const updates: string[] = [];
+    const query = async (text: string) => {
+      if (text.includes("UPDATE")) {
+        updates.push(text);
+        return { rows: [], rowCount: 1 } as never;
+      }
+      return { rows: [row()], rowCount: 1 } as never;
+    };
+    const svc = makeRequestService({ query: query as never });
+
+    await svc.review(
+      supervisor,
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "approved",
+    );
+
+    assert.doesNotMatch(updates[0]!, /description/);
+    assert.doesNotMatch(updates[0]!, /priority/);
+    assert.doesNotMatch(updates[0]!, /machine_id/);
+  },
+);
+
+console.log("\nremove — hapus");
+
+await check("admin hapus → DELETE terkirim, tidak melempar", async () => {
+  let deleted = false;
+  const query = async (text: string) => {
+    if (text.includes("DELETE")) {
+      deleted = true;
+      return {
+        rows: [{ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }],
+        rowCount: 1,
+      } as never;
+    }
+    return { rows: [], rowCount: 0 } as never;
+  };
+  const svc = makeRequestService({ query: query as never });
+
+  await svc.remove(admin, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  assert.equal(deleted, true);
+});
+
+await check("DELETE memakai RETURNING id, bukan rowCount saja", async () => {
+  const calls: string[] = [];
+  const query = async (text: string) => {
+    calls.push(text);
+    return { rows: [{ id: "x" }], rowCount: 1 } as never;
+  };
+  const svc = makeRequestService({ query: query as never });
+
+  await svc.remove(admin, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+
+  assert.match(calls[0]!, /DELETE FROM requests WHERE id = \$1 RETURNING id/);
+});
+
+await check("operator hapus → FORBIDDEN 403", async () => {
+  const svc = makeRequestService({ query: recorder([row()]).query as never });
+
+  await assert.rejects(
+    () => svc.remove(operator, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+    (err: unknown) => err instanceof AppError && err.status === 403,
+  );
+});
+
+await check("supervisor hapus → FORBIDDEN 403", async () => {
+  const svc = makeRequestService({ query: recorder([row()]).query as never });
+
+  await assert.rejects(
+    () => svc.remove(supervisor, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+    (err: unknown) => err instanceof AppError && err.status === 403,
+  );
+});
+
+await check("admin hapus id yang tidak ada → NOT_FOUND 404", async () => {
+  const svc = makeRequestService({ query: recorder([]).query as never });
+
+  await assert.rejects(
+    () => svc.remove(admin, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+    (err: unknown) => err instanceof AppError && err.status === 404,
+  );
+});
+
+await check("operator hapus id tidak ada → tetap 403, bukan 404", async () => {
+  const svc = makeRequestService({ query: recorder([]).query as never });
+
+  // Izin dicek sebelum query, jadi kebocoran "barisnya ada atau tidak" tertutup.
+  await assert.rejects(
+    () => svc.remove(operator, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+    (err: unknown) => err instanceof AppError && err.status === 403,
+  );
+});
+
 console.log(`\n${passed} lulus, ${failed} gagal`);
 
 if (failed > 0) {

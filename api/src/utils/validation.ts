@@ -33,9 +33,9 @@ export function parseOrThrow<T extends z.ZodType>(
   return result.data;
 }
 
-export async function readJson(request: Request): Promise<unknown> {
+export function readJson(text: string): unknown {
   try {
-    return await request.json();
+    return JSON.parse(text);
   } catch {
     throw badRequest("Body harus berupa JSON yang valid");
   }

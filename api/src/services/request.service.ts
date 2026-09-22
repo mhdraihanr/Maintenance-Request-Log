@@ -1,11 +1,13 @@
 import { query as defaultQuery } from "../db/pool";
 import type { AuthUser } from "../middleware/auth";
 import {
+  canDelete,
   canEdit,
   canView,
+  reviewDenial,
   type RequestForPolicy,
 } from "../policies/permissions";
-import { badRequest, forbidden, notFound } from "../utils/errors";
+import { badRequest, conflict, forbidden, notFound } from "../utils/errors";
 
 type RequestRow = {
   id: string;
@@ -61,6 +63,11 @@ const toPolicyShape = (row: RequestRow): RequestForPolicy => ({
   createdBy: row.created_by,
   status: row.status,
 });
+
+const asReviewError = (denial: "forbidden" | "already_reviewed") =>
+  denial === "forbidden"
+    ? forbidden()
+    : conflict("ALREADY_REVIEWED", "Request ini sudah ditinjau");
 
 const SORTABLE = {
   created_at: "r.created_at",
@@ -207,6 +214,46 @@ export const makeRequestService = (deps: RequestDeps) => ({
     );
 
     return this.getById(user, id);
+  },
+  async review(
+    user: AuthUser,
+    id: string,
+    nextStatus: "approved" | "rejected",
+  ) {
+    const result = await deps.query(
+      `SELECT ${COLUMNS}
+         FROM requests r
+         JOIN users u ON u.id = r.created_by
+        WHERE r.id = $1`,
+      [id],
+    );
+
+    const row = result.rows[0] as RequestRow | undefined;
+
+    if (!row) throw notFound("Request tidak ditemukan");
+
+    const denial = reviewDenial(user, toPolicyShape(row));
+    if (denial) throw asReviewError(denial);
+
+    await deps.query(
+      `UPDATE requests
+          SET status = $1, reviewed_by = $2, reviewed_at = now()
+        WHERE id = $3`,
+      [nextStatus, user.id, id],
+    );
+
+    return this.getById(user, id);
+  },
+
+  async remove(user: AuthUser, id: string) {
+    if (!canDelete(user)) throw forbidden();
+
+    const result = await deps.query(
+      `DELETE FROM requests WHERE id = $1 RETURNING id`,
+      [id],
+    );
+
+    if (result.rows.length === 0) throw notFound("Request tidak ditemukan");
   },
 });
 

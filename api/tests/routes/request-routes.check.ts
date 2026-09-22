@@ -85,6 +85,13 @@ const buildApp = (deps: PartialDeps) => {
       create: async () => REQUEST,
       getById: async () => REQUEST,
       update: async () => REQUEST,
+      review: async () => ({
+        ...REQUEST,
+        status: "approved",
+        reviewedBy: OP,
+        reviewedAt: new Date(),
+      }),
+      remove: async () => undefined,
       ...deps.service,
     } as RequestRouteDeps["service"],
   };
@@ -374,6 +381,193 @@ await check("service melempar 404 → response 404 NOT_FOUND", async () => {
   });
 
   const res = await app.request(`/api/requests/${REQUEST.id}`, {
+    headers: { cookie: cookieFor(OP_USER) },
+  });
+
+  assert.equal(res.status, 404);
+});
+
+console.log("\nPOST /api/requests/:id/approve dan /reject");
+
+await check("approve tanpa body → 200", async () => {
+  const app = buildApp({});
+  const res = await app.request(`/api/requests/${REQUEST.id}/approve`, {
+    method: "POST",
+    headers: { cookie: cookieFor(OP_USER) },
+  });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { data: { status: string } };
+  assert.equal(body.data.status, "approved");
+});
+
+await check("approve dengan note valid → 200", async () => {
+  const app = buildApp({});
+  const res = await app.request(`/api/requests/${REQUEST.id}/approve`, {
+    method: "POST",
+    headers: { cookie: cookieFor(OP_USER), "content-type": "application/json" },
+    body: JSON.stringify({ note: "Sudah diverifikasi di lapangan" }),
+  });
+
+  assert.equal(res.status, 200);
+});
+
+await check("approve dengan note kepanjangan → 400", async () => {
+  const app = buildApp({});
+  const res = await app.request(`/api/requests/${REQUEST.id}/approve`, {
+    method: "POST",
+    headers: { cookie: cookieFor(OP_USER), "content-type": "application/json" },
+    body: JSON.stringify({ note: "x".repeat(501) }),
+  });
+
+  assert.equal(res.status, 400);
+});
+
+await check("approve dengan field asing → 400", async () => {
+  const app = buildApp({});
+  const res = await app.request(`/api/requests/${REQUEST.id}/approve`, {
+    method: "POST",
+    headers: { cookie: cookieFor(OP_USER), "content-type": "application/json" },
+    body: JSON.stringify({ status: "approved" }),
+  });
+
+  assert.equal(res.status, 400);
+});
+
+await check("approve body rusak → 400, bukan 500", async () => {
+  const app = buildApp({});
+  const res = await app.request(`/api/requests/${REQUEST.id}/approve`, {
+    method: "POST",
+    headers: { cookie: cookieFor(OP_USER), "content-type": "application/json" },
+    body: "{rusak",
+  });
+
+  assert.equal(res.status, 400);
+});
+
+await check("reject → 200 dengan status rejected", async () => {
+  const app = buildApp({
+    service: {
+      review: (async (_u: AuthUser, _id: string, next: string) => ({
+        ...REQUEST,
+        status: next,
+      })) as never,
+    },
+  });
+
+  const res = await app.request(`/api/requests/${REQUEST.id}/reject`, {
+    method: "POST",
+    headers: { cookie: cookieFor(OP_USER) },
+  });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { data: { status: string } };
+  assert.equal(body.data.status, "rejected");
+});
+
+await check("service melempar 403 → response 403", async () => {
+  const app = buildApp({
+    service: {
+      review: (async () => {
+        const { forbidden } = await import("../../src/utils/errors");
+        throw forbidden();
+      }) as never,
+    },
+  });
+
+  const res = await app.request(`/api/requests/${REQUEST.id}/approve`, {
+    method: "POST",
+    headers: { cookie: cookieFor(OP_USER) },
+  });
+
+  assert.equal(res.status, 403);
+});
+
+await check(
+  "service melempar 409 ALREADY_REVIEWED → response 409",
+  async () => {
+    const app = buildApp({
+      service: {
+        review: (async () => {
+          const { conflict } = await import("../../src/utils/errors");
+          throw conflict("ALREADY_REVIEWED", "Request ini sudah ditinjau");
+        }) as never,
+      },
+    });
+
+    const res = await app.request(`/api/requests/${REQUEST.id}/approve`, {
+      method: "POST",
+      headers: { cookie: cookieFor(OP_USER) },
+    });
+
+    assert.equal(res.status, 409);
+    const body = (await res.json()) as { error: { code: string } };
+    assert.equal(body.error.code, "ALREADY_REVIEWED");
+  },
+);
+
+await check("approve id bukan UUID → 400", async () => {
+  const app = buildApp({});
+  const res = await app.request("/api/requests/bukan-uuid/approve", {
+    method: "POST",
+    headers: { cookie: cookieFor(OP_USER) },
+  });
+
+  assert.equal(res.status, 400);
+});
+
+await check("approve tanpa cookie → 401", async () => {
+  const app = buildApp({});
+  const res = await app.request(`/api/requests/${REQUEST.id}/approve`, {
+    method: "POST",
+  });
+
+  assert.equal(res.status, 401);
+});
+
+console.log("\nDELETE /api/requests/:id");
+
+await check("admin hapus → 204 tanpa body", async () => {
+  const app = buildApp({});
+  const res = await app.request(`/api/requests/${REQUEST.id}`, {
+    method: "DELETE",
+    headers: { cookie: cookieFor(OP_USER) },
+  });
+
+  assert.equal(res.status, 204);
+  assert.equal(await res.text(), "");
+});
+
+await check("service melempar 403 → response 403", async () => {
+  const app = buildApp({
+    service: {
+      remove: (async () => {
+        const { forbidden } = await import("../../src/utils/errors");
+        throw forbidden();
+      }) as never,
+    },
+  });
+
+  const res = await app.request(`/api/requests/${REQUEST.id}`, {
+    method: "DELETE",
+    headers: { cookie: cookieFor(OP_USER) },
+  });
+
+  assert.equal(res.status, 403);
+});
+
+await check("service melempar 404 → response 404", async () => {
+  const app = buildApp({
+    service: {
+      remove: (async () => {
+        const { notFound } = await import("../../src/utils/errors");
+        throw notFound();
+      }) as never,
+    },
+  });
+
+  const res = await app.request(`/api/requests/${REQUEST.id}`, {
+    method: "DELETE",
     headers: { cookie: cookieFor(OP_USER) },
   });
 

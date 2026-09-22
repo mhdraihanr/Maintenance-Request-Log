@@ -5,6 +5,7 @@ import { idParamSchema } from "../schemas/params.schema";
 import {
   createRequestSchema,
   listQuerySchema,
+  reviewSchema,
   updateRequestSchema,
 } from "../schemas/request.schema";
 import { requestService } from "../services/request.service";
@@ -13,7 +14,7 @@ import { parseOrThrow, readJson } from "../utils/validation";
 export type RequestRouteDeps = {
   service: Pick<
     typeof requestService,
-    "list" | "create" | "getById" | "update"
+    "list" | "create" | "getById" | "update" | "review" | "remove"
   >;
   // Disuntik supaya tes bisa memakai sesi palsu tanpa menyentuh Postgres.
   auth: () => MiddlewareHandler;
@@ -36,7 +37,10 @@ export const makeRequestRoutes = (deps: RequestRouteDeps): Hono => {
   });
 
   routes.post("/", async (c) => {
-    const body = parseOrThrow(createRequestSchema, await readJson(c.req.raw));
+    const body = parseOrThrow(
+      createRequestSchema,
+      readJson(await c.req.text()),
+    );
     const created = await deps.service.create(c.get("user"), body);
     return c.json({ data: created }, 201);
   });
@@ -49,9 +53,37 @@ export const makeRequestRoutes = (deps: RequestRouteDeps): Hono => {
 
   routes.patch("/:id", async (c) => {
     const { id } = parseOrThrow(idParamSchema, c.req.param());
-    const body = parseOrThrow(updateRequestSchema, await readJson(c.req.raw));
+    const body = parseOrThrow(
+      updateRequestSchema,
+      readJson(await c.req.text()),
+    );
     const updated = await deps.service.update(c.get("user"), id, body);
     return c.json({ data: updated });
+  });
+
+  const readOptionalNote = (text: string) => {
+    if (text.trim() === "") return {};
+    return parseOrThrow(reviewSchema, readJson(text));
+  };
+
+  routes.post("/:id/approve", async (c) => {
+    const { id } = parseOrThrow(idParamSchema, c.req.param());
+    readOptionalNote(await c.req.text());
+    const reviewed = await deps.service.review(c.get("user"), id, "approved");
+    return c.json({ data: reviewed });
+  });
+
+  routes.post("/:id/reject", async (c) => {
+    const { id } = parseOrThrow(idParamSchema, c.req.param());
+    readOptionalNote(await c.req.text());
+    const reviewed = await deps.service.review(c.get("user"), id, "rejected");
+    return c.json({ data: reviewed });
+  });
+
+  routes.delete("/:id", async (c) => {
+    const { id } = parseOrThrow(idParamSchema, c.req.param());
+    await deps.service.remove(c.get("user"), id);
+    return c.body(null, 204);
   });
 
   return routes;
