@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { Hono } from "hono";
 import { AppError } from "../../src/utils/errors";
-import type { Role, AuthUser } from "../../src/middleware/auth"; // ← Role dari auth.ts!
+import type { AuthUser } from "../../src/middleware/auth";
 import { requireRole } from "../../src/middleware/requireRole";
+import type { Role } from "../../src/types";
 
 // Aplikasi Hono NYATA dengan user yang DI-SET LANGSUNG ke context.
 // requireRole tidak butuh DB, jadi tidak perlu factory: cukup c.set("user", ...).

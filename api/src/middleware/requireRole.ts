@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
+import type { Role } from "../types";
 import { forbidden, unauthorized } from "../utils/errors";
-import type { Role } from "./auth";
 
 export const requireRole =
   (...allowed: Role[]): MiddlewareHandler =>

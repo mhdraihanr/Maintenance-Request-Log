@@ -1,12 +1,11 @@
 import type { MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie } from "hono/cookie";
 import { query as defaultQuery } from "../db/pool";
+import type { Role } from "../types";
 import { accountInactive, unauthorized } from "../utils/errors";
 import { verifyToken } from "../utils/jwt";
 
 const COOKIE_NAME = "auth";
-
-export type Role = "operator" | "supervisor" | "admin";
 
 export type AuthUser = {
   id: string;
