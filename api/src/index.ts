@@ -2,8 +2,15 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { env } from "./env";
 import { pool } from "./db/pool";
+import { requestId } from "./middleware/requestId";
+import { logger } from "./middleware/logger";
+import { errorHandler } from "./middleware/errorHandler";
+import "./types";
 
 const app = new Hono();
+app.use("*", requestId());
+app.use("*", logger());
+app.onError(errorHandler());
 
 app.get("/health", async (c) => {
   try {
