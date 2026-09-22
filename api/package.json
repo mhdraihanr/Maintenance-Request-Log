@@ -11,9 +11,11 @@
     "build": "tsc",
     "start": "node --env-file=.env dist/index.js",
     "typecheck": "tsc --noEmit",
+    "typecheck:all": "tsc -p tsconfig.test.json",
     "migrate": "tsx --env-file=.env src/db/migrate.ts",
     "seed": "tsx --env-file=.env src/db/seed.ts",
-    "db:ping": "tsx --env-file=.env src/db/ping.ts"
+    "db:ping": "tsx --env-file=.env src/db/ping.ts",
+    "check": "tsx tests/utils/errors.check.ts && tsx tests/utils/password.check.ts && tsx --env-file=.env tests/utils/jwt.check.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
