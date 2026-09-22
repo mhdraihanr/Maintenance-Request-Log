@@ -6,6 +6,7 @@ import { requestId } from "./middleware/requestId";
 import { logger } from "./middleware/logger";
 import { errorHandler } from "./middleware/errorHandler";
 import { authRoutes } from "./routes/auth.routes";
+import { requestRoutes } from "./routes/request.routes";
 import "./types";
 
 const app = new Hono();
@@ -34,7 +35,7 @@ app.get("/health", async (c) => {
 });
 
 app.route("/api/auth", authRoutes);
-
+app.route("/api/requests", requestRoutes);
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {
   console.log(`API listening on http://localhost:${info.port}`);
 });
