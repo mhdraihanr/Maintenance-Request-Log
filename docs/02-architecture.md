@@ -42,9 +42,14 @@
 │   1. requestId      → id unik per request (log correlation) │
 │   2. logger         → structured log                        │
 │   3. errorHandler   → error seragam → JSON                  │
-│   4. cors           → origin terbatas + credentials         │
-│   5. authMiddleware → verifikasi JWT → c.set('user')        │
-│   6. requireRole()  → guard per-route                       │
+│   4. authMiddleware → verifikasi JWT → c.set('user')        │
+│   5. requireRole()  → guard per-route                       │
+│                                                            │
+│  Catatan: TIDAK ada middleware CORS. Di produksi nginx      │
+│  menyajikan SPA dan mem-proxy /api/* sehingga satu origin   │
+│  (lihat ADR-01 & 06 §1). Untuk mode dev frontend di         │
+│  localhost:5173, CORS dibuka HANYA saat NODE_ENV=           │
+│  development — lihat §6.                                   │
 │                                                            │
 │  Routes:                                                   │
 │   /api/auth/*      login, logout, me                       │
@@ -143,10 +148,12 @@ maintenance-request-log/
 │   │   │   ├── migrate.ts         # jalankan migrations/*.sql
 │   │   │   └── seed.ts            # seed user + request
 │   │   ├── middleware/
+│   │   │   ├── requestId.ts       # id unik per request (log correlation)
 │   │   │   ├── auth.ts            # verify JWT → c.user
 │   │   │   ├── requireRole.ts
 │   │   │   ├── errorHandler.ts
 │   │   │   └── logger.ts
+│   │   ├── types.ts               # declaration merging ContextVariableMap (wajib)
 │   │   ├── routes/
 │   │   │   ├── auth.routes.ts
 │   │   │   ├── request.routes.ts
@@ -227,3 +234,40 @@ Jika langkah 6b gagal → `403`, dan **tidak ada** perubahan tersimpan. Ini yang
 | Log       | Structured (JSON). **Tidak pernah** mencatat password atau token                                    |
 | Commit    | Commit kecil & bermakna; prefix `feat:`, `fix:`, `docs:`, `chore:`, `test:`                         |
 | Bahasa    | Kode & komentar dalam Inggris; docs & UI copy mengikuti bahasa referensi                            |
+
+---
+
+## 7. CORS — dev vs produksi
+
+**Produksi:** tidak ada CORS sama sekali. nginx menyajikan SPA dan mem-proxy `/api/*` ke service
+`api`, sehingga browser melihat satu origin (`http://localhost:8080`). Cookie `SameSite=Lax`
+bekerja tanpa konfigurasi domain tambahan. Ini alasan `cors` **tidak** ada di rantai middleware §2.
+
+**Dev:** frontend Vite berjalan di `http://localhost:5173` sementara API di `http://localhost:3000`
+— dua origin berbeda. Tanpa CORS, browser memblokir request dan cookie tidak terkirim.
+
+Karena itu middleware CORS **hanya** diaktifkan saat `NODE_ENV=development`:
+
+```ts
+// di index.ts, SEBELUM requestId — hanya saat dev
+if (env.NODE_ENV === "development") {
+  app.use(
+    "/api/*",
+    cors({
+      origin: "http://localhost:5173",
+      credentials: true, // wajib, agar cookie auth ikut terkirim
+    }),
+  );
+}
+```
+
+Aturan yang dipegang:
+
+- Origin di-**whitelist eksplisit**, bukan `*` — karena `credentials: true` dan `*` tidak boleh
+  dipakai bersama (browser akan menolak).
+- **Jangan** aktifkan CORS di produksi. Kalau `NODE_ENV` salah di-set, itu bug konfigurasi yang
+  harus terlihat, bukan ditutupi.
+- Dependensi: `hono/cors` sudah tersedia dari paket `hono` — tidak perlu paket tambahan.
+
+> Catatan implementasi: CORS untuk dev belum dipasang pada Step 1–7 (produksi belum membutuhkan).
+> Ditambahkan saat frontend mulai dikerjakan di Step 16+.

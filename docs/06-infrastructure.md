@@ -165,6 +165,23 @@ PORT=3000
 WEB_PORT=8080
 ```
 
+### `DATABASE_URL` — dua varian
+
+Nilai `DATABASE_URL` **berbeda** antara menjalankan API langsung dan lewat Docker Compose,
+karena nama host-nya berbeda:
+
+| Cara jalan                | Nilai                                                       | Kenapa                         |
+| ------------------------- | ----------------------------------------------------------- | ------------------------------ |
+| Dev lokal (`npm run dev`) | `postgres://mrl:...@localhost:5432/maintenance_request_log` | DB diakses lewat port ke host  |
+| Di dalam Docker Compose   | `postgres://mrl:...@db:5432/maintenance_request_log`        | `db` = nama service di network |
+
+Di `docker-compose.yml`, `DATABASE_URL` **di-set oleh Compose** (lihat §2), jadi nilai di `.env`
+tidak berpengaruh saat berjalan di dalam container. Untuk dev lokal, simpan varian `localhost`
+di `.env`; varian `db` boleh ditulis sebagai komentar agar mudah ditukar.
+
+> `api/src/env.ts` hanya mewajibkan `DATABASE_URL` terisi (minimal 1 karakter) — tidak memeriksa
+> host-nya. Kesalahan host akan muncul sebagai kegagalan koneksi saat `db:ping` atau boot.
+
 **Aturan secret**
 
 - `.env` **tidak** di-commit (ada di `.gitignore`).

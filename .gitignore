@@ -6,6 +6,8 @@ ui-ux-reference.png
 # ---- Working notes (local scratch, not submitted) ----
 docs/steps/
 docs/ROADMAP.md
+AGENTS.md
+docs/notes/
 
 # ---- Environment / secrets ----
 .env
