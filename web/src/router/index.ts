@@ -35,6 +35,21 @@ const router = createRouter({
           component: () => import("@/pages/RequestsPage.vue"),
         },
         {
+          path: "requests/new",
+          name: "request-new",
+          component: () => import("@/pages/RequestNewPage.vue"),
+        },
+        {
+          path: "requests/:id",
+          name: "request-detail",
+          component: () => import("@/pages/RequestDetailPage.vue"),
+        },
+        {
+          path: "requests/:id/edit",
+          name: "request-edit",
+          component: () => import("@/pages/RequestEditPage.vue"),
+        },
+        {
           path: "users",
           name: "users",
           component: () => import("@/pages/UsersPage.vue"),
