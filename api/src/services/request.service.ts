@@ -21,6 +21,7 @@ type RequestRow = {
   reviewed_by: string | null;
   reviewed_at: Date | null;
   created_by_name: string;
+  reviewer_name: string | null;
 };
 
 type ListFilter = {
@@ -44,7 +45,11 @@ export type RequestDeps = {
 
 const COLUMNS = `r.id, r.code, r.machine_id, r.description, r.priority, r.status,
        r.created_by, r.created_at, r.reviewed_by, r.reviewed_at,
-       u.name AS created_by_name`;
+       u.name AS created_by_name, rv.name AS reviewer_name`;
+
+/** JOIN wajib untuk setiap query yang memakai COLUMNS. */
+const JOINS = `JOIN users u ON u.id = r.created_by
+       LEFT JOIN users rv ON rv.id = r.reviewed_by`;
 
 const toPublicRequest = (row: RequestRow) => ({
   id: row.id,
@@ -55,7 +60,9 @@ const toPublicRequest = (row: RequestRow) => ({
   status: row.status,
   createdBy: { id: row.created_by, name: row.created_by_name },
   createdAt: row.created_at,
-  reviewedBy: row.reviewed_by,
+  reviewedBy: row.reviewed_by
+    ? { id: row.reviewed_by, name: row.reviewer_name ?? "" }
+    : null,
   reviewedAt: row.reviewed_at,
 });
 
@@ -117,7 +124,7 @@ export const makeRequestService = (deps: RequestDeps) => ({
     const rows = await deps.query(
       `SELECT ${COLUMNS}
          FROM requests r
-         JOIN users u ON u.id = r.created_by
+         ${JOINS}
          ${clause}
         ORDER BY ${sortColumn} ${direction}, r.id ASC
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -154,7 +161,7 @@ export const makeRequestService = (deps: RequestDeps) => ({
     const result = await deps.query(
       `SELECT ${COLUMNS}
          FROM requests r
-         JOIN users u ON u.id = r.created_by
+         ${JOINS}
         WHERE r.id = $1`,
       [id],
     );
@@ -176,7 +183,7 @@ export const makeRequestService = (deps: RequestDeps) => ({
     const result = await deps.query(
       `SELECT ${COLUMNS}
          FROM requests r
-         JOIN users u ON u.id = r.created_by
+         ${JOINS}
         WHERE r.id = $1`,
       [id],
     );
@@ -223,7 +230,7 @@ export const makeRequestService = (deps: RequestDeps) => ({
     const result = await deps.query(
       `SELECT ${COLUMNS}
          FROM requests r
-         JOIN users u ON u.id = r.created_by
+         ${JOINS}
         WHERE r.id = $1`,
       [id],
     );

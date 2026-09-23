@@ -152,8 +152,8 @@ Siapa boleh: semua yang login. **Cakupan hasil bergantung peran** — ini bukan 
       "status": "submitted",
       "createdBy": { "id": "…", "name": "Budi Santoso" },
       "createdAt": "2026-09-24T01:32:00.000Z",
-      "reviewedBy": null,
-      "reviewedAt": null
+      "reviewedBy": { "id": "…", "name": "Siti Nurhaliza" },
+      "reviewedAt": "2026-09-24T02:10:00.000Z"
     }
   ],
   "meta": { "page": 1, "limit": 20, "total": 24, "totalPages": 2 }
@@ -161,6 +161,9 @@ Siapa boleh: semua yang login. **Cakupan hasil bergantung peran** — ini bukan 
 ```
 
 `meta` disertakan agar pagination (bonus) tidak mengubah bentuk respons.
+
+`reviewedBy` berbentuk `{ id, name }` seperti `createdBy`, dan bernilai `null` selama request
+belum ditinjau. Nama peninjau diambil dengan `LEFT JOIN users` pada kolom `reviewed_by`.
 
 ---
 

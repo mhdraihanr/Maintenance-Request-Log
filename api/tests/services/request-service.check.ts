@@ -53,6 +53,7 @@ const row = (over: Partial<Record<string, unknown>> = {}) => ({
   reviewed_by: null,
   reviewed_at: null,
   created_by_name: "Budi",
+  reviewer_name: null,
   ...over,
 });
 
@@ -209,7 +210,31 @@ await check(
 
     assert.equal(result.machineId, "Machine A-12");
     assert.deepEqual(result.createdBy, { id: OP, name: "Budi" });
+    assert.equal(result.reviewedBy, null);
     assert.equal("machine_id" in result, false);
+  },
+);
+
+await check(
+  "reviewedBy berbentuk { id, name } saat sudah ditinjau",
+  async () => {
+    const svc = makeRequestService({
+      query: recorder([
+        row({
+          status: "approved",
+          reviewed_by: OTHER,
+          reviewed_at: new Date("2026-09-23T00:00:00Z"),
+          reviewer_name: "Siti",
+        }),
+      ]).query as never,
+    });
+    const result = await svc.getById(
+      supervisor,
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    );
+
+    assert.deepEqual(result.reviewedBy, { id: OTHER, name: "Siti" });
+    assert.equal("reviewer_name" in result, false);
   },
 );
 
