@@ -15,7 +15,14 @@
     "migrate": "tsx --env-file=.env src/db/migrate.ts",
     "seed": "tsx --env-file=.env src/db/seed.ts",
     "db:ping": "tsx --env-file=.env src/db/ping.ts",
-    "check": "tsx tests/utils/errors.check.ts && tsx tests/utils/password.check.ts && tsx --env-file=.env tests/utils/jwt.check.ts"
+    "check:utils": "tsx --env-file=.env tests/utils/errors.check.ts && tsx --env-file=.env tests/utils/password.check.ts && tsx --env-file=.env tests/utils/jwt.check.ts",
+    "check:middleware": "tsx --env-file=.env tests/middleware/requestId.check.ts && tsx --env-file=.env tests/middleware/errorHandler.check.ts && tsx --env-file=.env tests/middleware/auth.check.ts && tsx --env-file=.env tests/middleware/requireRole.check.ts",
+    "check:policies": "tsx --env-file=.env tests/policies/permissions.check.ts",
+    "check:schemas": "tsx --env-file=.env tests/schemas/validation.check.ts",
+    "check:services": "tsx --env-file=.env tests/services/auth-service.check.ts && tsx --env-file=.env tests/services/request-service.check.ts && tsx --env-file=.env tests/services/user-service.check.ts",
+    "check:routes": "tsx --env-file=.env tests/routes/auth-routes.check.ts && tsx --env-file=.env tests/routes/request-routes.check.ts && tsx --env-file=.env tests/routes/user-routes.check.ts",
+    "check": "npm run check:utils && npm run check:middleware && npm run check:policies && npm run check:schemas && npm run check:services && npm run check:routes",
+    "verify": "npm run typecheck:all && npm run check"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
