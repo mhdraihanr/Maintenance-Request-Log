@@ -20,24 +20,24 @@ dapat menilai _alasan_ di balik pilihan, bukan hanya hasilnya.
 | 04  | [API Spec](04-api-spec.md)                       | Kontrak endpoint, payload, kode error, contoh uji              | Reviewer & pengembang |
 | 05  | [UI / UX](05-ui-ux.md)                           | Design token, layout per halaman, komponen, aksesibilitas      | Pengembang frontend   |
 | 06  | [Infrastructure](06-infrastructure.md)           | Docker, env, Jenkinsfile, riwayat git                          | DevOps / reviewer     |
-| 07  | [Optional Tasks Plan](07-optional-tasks-plan.md) | Rencana bonus (sebagian belum dikerjakan)                      | Reviewer              |
+| 07  | [Optional Tasks Plan](07-optional-tasks-plan.md) | Rencana bonus — **rencana**, bukan catatan hasil               | Reviewer              |
 
 ---
 
 ## Kesimpulan Keputusan Penting
 
-| Area             | Keputusan                                                                      |
-| ---------------- | ------------------------------------------------------------------------------ |
-| Backend          | **Hono (TypeScript)** di Node 20 — dari dua opsi (Hono / Go), ini yang dipilih |
-| Frontend         | **Vue 3 + Vite + TypeScript**, Pinia, Vue Router                               |
-| Database         | **PostgreSQL 16**, akses via `pg` + SQL langsung                               |
-| Autentikasi      | **JWT (HS256) di httpOnly cookie**, TTL 8 jam                                  |
-| Password         | **argon2id**                                                                   |
-| Validasi         | **Zod**, satu skema untuk tipe + validasi                                      |
-| Otorisasi        | **Middleware berlapis + policy per-resource terpusat**                         |
-| Pintu masuk      | **nginx** menyajikan SPA + proxy `/api/*` → tanpa CORS                         |
-| Bonus dikerjakan | **Audit trail** + **Pagination & server-side search**                          |
-| Alur kerja       | Dokumen dulu → kode mengikuti; commit bertahap, tidak di-squash                |
+| Area             | Keputusan                                                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Backend          | **Hono (TypeScript)** di Node 20 — dari dua opsi (Hono / Go), ini yang dipilih                                                     |
+| Frontend         | **Vue 3 + Vite + TypeScript**, Pinia, Vue Router                                                                                   |
+| Database         | **PostgreSQL 16**, akses via `pg` + SQL langsung                                                                                   |
+| Autentikasi      | **JWT (HS256) di httpOnly cookie**, TTL 8 jam                                                                                      |
+| Password         | **argon2id**                                                                                                                       |
+| Validasi         | **Zod**, satu skema untuk tipe + validasi                                                                                          |
+| Otorisasi        | **Middleware berlapis + policy per-resource terpusat**                                                                             |
+| Pintu masuk      | **nginx** menyajikan SPA + proxy `/api/*` → tanpa CORS                                                                             |
+| Bonus dikerjakan | **Health check + structured logging** + **Automated tests matriks izin** + **Pagination & server-side search** (lihat README root) |
+| Alur kerja       | Dokumen dulu → kode mengikuti; commit bertahap, tidak di-squash                                                                    |
 
 ---
 
@@ -131,7 +131,7 @@ Diukur lewat `docker images`, Docker 29.8.0:
 | Image                           | Ukuran  |
 | ------------------------------- | ------- |
 | `api` (multi-stage)             | 214 MB  |
-| `web` (multi-stage)             | 98.4 MB |
+| `web` (multi-stage)             | 98.6 MB |
 | `web` single-stage (pembanding) | 347 MB  |
 | `postgres:16-alpine`            | 420 MB  |
 
@@ -158,5 +158,5 @@ bisa dihindari tanpa mengganti algoritma hashing.
 Folder `docs/` ini disusun dengan bantuan skill (`ui-ux-pro-max`, `design-system`, `antislop-ui`,
 `antislop-layoutmobile`). Satu rekomendasi skill **ditolak secara sadar**: skill mengusulkan
 _Dark Mode OLED + hijau + tipografi serif_, yang bertentangan dengan brand Hirose. Brand identity
-dari brief dianggap otoritas tertinggi. Detailnya akan ada di bagian **AI Disclosure** pada README
-root — brief secara eksplisit meminta pengungkapan ini.
+dari brief dianggap otoritas tertinggi. Detailnya ada di bagian **AI Disclosure** pada README root —
+brief secara eksplisit meminta pengungkapan ini.

@@ -1,5 +1,7 @@
 # Maintenance Request Log (MRL)
 
+![Maintenance Request Log — login and dashboard](docs/screenshot-dashboard.png)
+
 Internal maintenance request log for **PT. Hirose Electric Indonesia**.
 
 Operators raise a request when a machine has a problem, Supervisors approve or reject it,
