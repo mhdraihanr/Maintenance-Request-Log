@@ -9,6 +9,9 @@ docs/ROADMAP.md
 AGENTS.md
 docs/notes/
 
+# ---- Local dev tooling (not part of the submission) ----
+docker-compose.tools.yml
+
 # ---- Environment / secrets ----
 .env
 .env.*

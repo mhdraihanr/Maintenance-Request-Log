@@ -62,8 +62,15 @@ Buka `http://localhost:8080`. Akun seed:
 ### Catatan port
 
 `WEB_PORT` di `.env` menentukan port host untuk `web`. Default `8080`. **Kalau port 8080 sudah
-dipakai** (misalnya oleh Adminer dalam container lain), ubah jadi `WEB_PORT=8081`. Jangan mengubah
-pemetaan di `docker-compose.yml` — nilai itu sengaja bisa dikonfigurasi.
+dipakai** proses lain, ubah jadi `WEB_PORT=8081`. Jangan mengubah pemetaan di `docker-compose.yml`
+— nilai itu sengaja bisa dikonfigurasi.
+
+Container pendukung (Adminer) sudah dipindah ke **8082** lewat `docker-compose.tools.yml`, jadi
+normalnya `8080` bebas:
+
+```bash
+docker compose -f docker-compose.tools.yml up -d   # Adminer di http://localhost:8082
+```
 
 Periksa dulu apakah port bebas:
 

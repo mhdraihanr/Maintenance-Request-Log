@@ -211,9 +211,13 @@ Buka **http://localhost:8080** → login dengan kredensial seed:
 
 ---
 
-## 6. Jenkinsfile (rencana)
+## 6. Jenkinsfile
 
 Tidak dijalankan terhadap Jenkins server nyata — brief menyatakan akan **dibaca** dan ditanyakan. Karena itu setiap stage diberi komentar tujuan, dan README menjelaskannya.
+
+Berkasnya ada di akar repo: [`Jenkinsfile`](../Jenkinsfile).
+
+**Setiap perintah di dalamnya sudah dijalankan manual di repo ini** (lihat tabel bukti di bawah), kecuali `checkout scm` yang hanya bekerja di dalam Jenkins. Tidak ada stage yang memanggil script yang tidak ada — draf awal bagian ini sempat memanggil `npm run lint` dan `npm test` yang tidak pernah ada, dan itu sudah diperbaiki.
 
 ```groovy
 pipeline {
@@ -221,49 +225,62 @@ pipeline {
 
   environment {
     COMPOSE_FILE = 'docker-compose.yml'
+    WEB_PORT = '8080'
   }
 
   stages {
     stage('Checkout') {
-      // Ambil source + commit history (full clone, bukan depth 1)
+      // Ambil source + riwayat commit. Full clone, bukan depth 1, karena
+      // reviewer menilai riwayat commit bertahap.
       steps { checkout scm }
     }
 
+    stage('Prepare Env') {
+      // docker compose membaca .env untuk POSTGRES_* dan JWT_SECRET.
+      // .env tidak masuk repo, jadi dibuat dari contoh dengan secret acak.
+      steps {
+        sh '''
+          if [ ! -f .env ]; then
+            cp .env.example .env
+            secret=$(openssl rand -hex 32)
+            sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$secret|" .env
+          fi
+        '''
+      }
+    }
+
     stage('Install') {
-      // Install dependensi front & back secara deterministik (npm ci)
+      // npm ci deterministik: patuh package-lock.json, tidak mengubahnya.
       steps { sh 'cd api && npm ci' ; sh 'cd web && npm ci' }
     }
 
-    stage('Lint') {
-      // Gaya kode; gagal cepat sebelum build
-      steps { sh 'cd api && npm run lint' ; sh 'cd web && npm run lint' }
-    }
-
     stage('Type Check') {
-      // tsc --noEmit di kedua paket — menangkap error tipe tanpa emit
+      // Menangkap error tipe tanpa emit. Lebih murah dari test, jadi lebih dulu.
       steps { sh 'cd api && npm run typecheck' ; sh 'cd web && npm run typecheck' }
     }
 
-    stage('Unit / Integration Tests') {
-      // Uji matriks izin (bonus) + uji service
-      steps { sh 'cd api && npm test' }
+    stage('Test') {
+      // verify = typecheck:all + seluruh rangkaian check:*
+      // (izin, middleware, skema, service, route). Tidak butuh Postgres.
+      steps { sh 'cd api && npm run verify' }
     }
 
     stage('Build') {
-      // Bangun image api & web untuk memastikan Dockerfile valid
+      // Validasi Dockerfile & konteks build; juga menjalankan tsc di image.
       steps { sh 'docker compose build' }
     }
 
     stage('Start Stack & Smoke Test') {
-      // Nyalakan stack, tunggu /health, panggil endpoint, lalu turunkan
+      // Buktikan stack benar-benar berjalan, bukan hanya ter-build.
       steps {
-        sh 'docker compose up -d'
-        sh './scripts/smoke-test.sh'   // tunggu health + login + 1 request
+        sh 'docker compose up -d --wait'
+        sh 'sh scripts/smoke-test.sh'
       }
     }
   }
 
   post {
+    // Selalu turunkan stack + hapus volume, walau ada stage yang gagal.
     always  { sh 'docker compose down -v || true' }
     success { echo 'Pipeline selesai: semua stage lulus.' }
     failure { echo 'Pipeline gagal — lihat stage yang merah.' }
@@ -273,18 +290,41 @@ pipeline {
 
 ### Penjelasan stage (juga masuk README)
 
-| Stage         | Apa yang dilakukan                                        | Kenapa di urutan ini                                              |
-| ------------- | --------------------------------------------------------- | ----------------------------------------------------------------- |
-| Checkout      | Ambil repo & commit history penuh                         | Butuh riwayat; depth-1 menghilangkan histori                      |
-| Install       | `npm ci` di `api` & `web`                                 | `npm ci` deterministik (patuh lockfile), beda dari `npm install`  |
-| Lint          | Periksa gaya kode                                         | Gagal cepat & murah sebelum build mahal                           |
-| Type Check    | `tsc --noEmit`                                            | Menangkap error tipe tanpa menghasilkan artefak                   |
-| Tests         | Jest/Vitest: matriks izin + service                       | Melindungi aturan izin dari regresi                               |
-| Build         | `docker compose build`                                    | Memvalidasi Dockerfile & konteks build                            |
-| Start & Smoke | `compose up -d` → tunggu `/health` → panggil API → `down` | Membuktikan stack benar-benar **berjalan**, bukan hanya ter-build |
-| post          | Selalu `compose down -v`                                  | Bersihkan resource walau gagal                                    |
+| Stage               | Apa yang dilakukan                                         | Kenapa di urutan ini                                                |
+| ------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------- |
+| Checkout            | Ambil repo & commit history penuh                          | Butuh riwayat; depth-1 menghilangkan histori                        |
+| Prepare Env         | Buat `.env` dari `.env.example` + `JWT_SECRET` acak        | `compose` butuh `POSTGRES_*` & `JWT_SECRET`; `.env` tidak di repo   |
+| Install             | `npm ci` di `api` & `web`                                  | `npm ci` deterministik (patuh lockfile), beda dari `npm install`    |
+| Type Check          | `tsc --noEmit` / `vue-tsc --noEmit`                        | Menangkap error tipe tanpa artefak; lebih murah dari build          |
+| Test                | `npm run verify` (izin, middleware, skema, service, route) | Melindungi aturan izin dari regresi; tanpa DB, jadi cepat & mandiri |
+| Build               | `docker compose build`                                     | Memvalidasi Dockerfile & konteks build                              |
+| Start Stack & Smoke | `compose up -d --wait` → `smoke-test.sh` → `down -v`       | Membuktikan stack benar-benar **berjalan**, bukan hanya ter-build   |
+| post                | Selalu `compose down -v`                                   | Bersihkan resource walau gagal                                      |
 
-**Catatan desain:** stage `Tests` dan `Smoke Test` sengaja dipisah — `Tests` mengecek unit logika izin, `Smoke Test` mengecek integrasi nyata end-to-end (DB + migrasi + seed + auth). Kegagalan di salah satu menunjuk area yang berbeda.
+**Catatan desain:** stage `Test` dan `Smoke Test` sengaja dipisah — `Test` mengecek unit logika izin tanpa database, `Smoke Test` mengecek integrasi nyata end-to-end (DB + migrasi + seed + auth). Kegagalan di salah satu menunjuk area yang berbeda.
+
+**Kenapa tidak ada stage `Lint`:** repo ini tidak memasang ESLint/Prettier. Menulis stage `Lint` yang memanggil script tak ada hanya akan membuat pipeline merah. Bila linting ditambahkan nanti, tambahkan script `lint` di kedua paket dulu, baru stage-nya.
+
+### `scripts/smoke-test.sh`
+
+Skrip ini menunggu `/health` melaporkan `db: "up"`, lalu memeriksa halaman web, login seed, dan satu endpoint terproteksi (dengan dan tanpa cookie). Keluar non-nol pada kegagalan pertama.
+
+**Temuan saat verifikasi:** `/health` **tidak** bisa dijangkau dari luar lewat nginx. Endpoint itu didaftarkan di root app API (`app.get("/health")`), sedangkan `nginx.conf` hanya mem-proxy `location /api/`, dan `proxy_pass http://api:3000;` **tanpa** trailing slash sehingga path diteruskan utuh — akibatnya `/api/health` menjadi `api:3000/api/health` → `404`, sementara `/health` langsung ditelan SPA fallback (`try_files $uri /index.html`) → `200` HTML. Karena itu skrip memeriksa health **dari dalam container api**, yang sekaligus menguji koneksi API → database sungguhan. Login dan endpoint lain tetap diperiksa lewat nginx karena prefix `/api/` memang di-proxy dengan benar.
+
+### Bukti verifikasi (2026-09-23)
+
+| Stage       | Perintah yang diuji             | Hasil                                                              |
+| ----------- | ------------------------------- | ------------------------------------------------------------------ |
+| Prepare Env | guard `if [ ! -f .env ]`        | `.env` sudah ada → dilewati (idempoten)                            |
+| Install     | `npm ci` di `api` & `web`       | terpasang dari lockfile                                            |
+| Type Check  | `npm run typecheck` (api & web) | exit 0                                                             |
+| Test        | `npm run verify`                | 36 + 19 + 11 + 24 + 18 + 13 + 32 + 21 lulus, 0 gagal               |
+| Build       | `docker compose build`          | image `api` & `web` terbangun                                      |
+| Start Stack | `docker compose up -d --wait`   | 3 container **healthy**                                            |
+| Smoke Test  | `sh scripts/smoke-test.sh`      | 5 pemeriksaan OK, exit 0                                           |
+| post        | `docker compose down -v`        | container, volume, network terhapus; container dev tidak tersentuh |
+
+> Dijalankan dengan `WEB_PORT=8080` (nilai default). Container pendukung seperti Adminer dipindah ke port lain lewat `docker-compose.tools.yml`, lihat bagian “Catatan port” di [ROADMAP](ROADMAP.md).
 
 ---
 
