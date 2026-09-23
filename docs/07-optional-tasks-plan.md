@@ -4,16 +4,16 @@ Brief: _"Pick at most one or two that interest you, and note in your README whic
 
 **Keputusan:** dari daftar bonus, yang akan **dikerjakan** adalah **dua** berikut (paling relevan dan paling terlihat nilainya tanpa menambah kompleksitas arsitektur):
 
-| #   | Bonus                                      | Status                                                                  |
-| --- | ------------------------------------------ | ----------------------------------------------------------------------- |
-| 1   | **Audit trail** (riwayat perubahan status) | 🔷 Akan dikerjakan — UI timeline-nya sudah ada di referensi             |
-| 2   | **Pagination + server-side search**        | 🔷 Akan dikerjakan — sudah tampak di referensi (bar hasil + pagination) |
+| #   | Bonus                                      | Status                                                                                |
+| --- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| 1   | **Audit trail** (riwayat perubahan status) | 🔷 Rencana — UI timeline-nya sudah ada di referensi. **Belum dikerjakan** (lihat §12) |
+| 2   | **Pagination + server-side search**        | ✅ Sudah ada sejak Step 11 — bukan hasil step bonus ini (lihat §12)                   |
 
 Sisanya hanya **direncanakan** di bawah (bagian §5–§9), agar jelas ada pemikiran, tanpa menambah risiko ke hasil akhir. Prinsip dari brief: _"A smaller, well-built submission scores higher than a feature-complete but messy one."_
 
 ---
 
-## 1. Audit Trail (akan dikerjakan)
+## 1. Audit Trail (**BELUM dikerjakan** — rencana)
 
 ### 1.1 Tujuan
 
@@ -86,7 +86,7 @@ Card **History** di halaman detail menjadi timeline dari endpoint ini. Titik per
 
 ---
 
-## 2. Pagination + Server-side Search (akan dikerjakan)
+## 2. Pagination + Server-side Search (**sudah ada** — sejak Step 11, bukan dari rencana ini)
 
 ### 2.1 Pagination
 
@@ -169,7 +169,7 @@ CREATE INDEX idx_requests_desc_trgm    ON requests USING gin (description gin_tr
 
 ---
 
-## 6. Health Check & Structured Logging (RENCANA — tidak dikerjakan)
+## 6. Health Check & Structured Logging (**SUDAH ADA** — lihat README root)
 
 Ide yang sudah setengah jalan dan mudah ditambahkan:
 
@@ -187,7 +187,7 @@ Alasan **tidak** dikerjakan: dokumen [`04-api-spec.md`](04-api-spec.md) sudah me
 
 ---
 
-## 8. Automated Tests (RENCANA — kemungkinan dikerjakan sebagian)
+## 8. Automated Tests (**SUDAH ADA** — 15 berkas suite via `npm run verify`)
 
 Sudah dipetakan lengkap di [01 §6](01-requirements.md). Prioritas:
 
@@ -199,7 +199,7 @@ Rencana runner: **Vitest** untuk keduanya, dengan DB test terpisah (schema sendi
 
 ---
 
-## 9. Multi-stage Dockerfile (RENCANA — kemungkinan dikerjakan)
+## 9. Multi-stage Dockerfile (**SUDAH ADA** — api 214 MB, web 98.6 MB)
 
 Sudah dirancang di [06 §3.2](06-infrastructure.md). Yang belum: **mengukur size sebenarnya** dengan `docker images` dan menulis before/after di README. Ini murah dikerjakan dan memberi nilai jelas, jadi statusnya "kemungkinan".
 
@@ -234,15 +234,20 @@ Alasan **tidak** dikerjakan: nilai demonstasinya tinggi tetapi biayanya (broker 
 
 ## 12. Ringkasan Keputusan Bonus
 
-| Bonus                  | Keputusan                  | Alasan singkat                                                 |
-| ---------------------- | -------------------------- | -------------------------------------------------------------- |
-| Audit trail            | ✅ dikerjakan              | UI timeline sudah ada di referensi; nilai tinggi, biaya rendah |
-| Pagination + search    | ✅ dikerjakan              | Sudah tampak di referensi; ≥1 filter memang wajib              |
-| Health check & logging | 🔶 sebagian (health)       | Health dibutuhkan Compose walau bonus tidak diklaim            |
-| Automated tests        | 🔶 sebagian (matriks izin) | Brief menyebutnya eksplisit                                    |
-| Multi-stage Dockerfile | 🔶 sebagian                | Desain siap; tinggal ukur & catat size                         |
-| OpenAPI                | ❌ planned saja            | Sudah terwakili dokumen ini; hindari dua sumber kebenaran      |
-| Time-series            | ❌ planned saja            | Menambah layanan stateful baru                                 |
-| MQTT                   | ❌ planned saja            | Biaya & risiko lifecycle tertinggi                             |
+> **Catatan status (2026-09-24):** tabel ini ditulis sebagai **rencana**. Kolom "Realisasi"
+> mencerminkan keadaan sebenarnya saat ini. Audit trail (§1) **belum diimplementasikan**;
+> pagination + search (§2) sudah berjalan tetapi **sejak Step 11**, bukan hasil step bonus ini.
+> Lihat README root bagian "Optional Tasks Attempted" untuk daftar bonus yang benar-benar ada.
 
-> Setelah implementasi, README akan mencantumkan bagian **"Optional Tasks Attempted"** yang mencerminkan tabel ini secara jujur — termasuk yang **tidak** dikerjakan.
+| Bonus                  | Rencana         | Realisasi                                                                                | Alasan singkat                                                 |
+| ---------------------- | --------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Audit trail            | ✅ dikerjakan   | ❌ **belum** — tidak ada tabel `request_audit`; timeline direkonstruksi dari `createdAt` | UI timeline sudah ada di referensi; nilai tinggi, biaya rendah |
+| Pagination + search    | ✅ dikerjakan   | ✅ **ada** — tetapi sejak Step 11, bukan hasil step ini (lihat bagian 2)                 | ≥1 filter memang wajib; search sudah terpasang sejak awal      |
+| Health check & logging | 🔶 sebagian     | ✅ **ada**                                                                               | Health dibutuhkan Compose; logging JSON per request aktif      |
+| Automated tests        | 🔶 sebagian     | ✅ **ada** (15 berkas suite, `npm run verify`)                                           | Brief menyebutnya eksplisit                                    |
+| Multi-stage Dockerfile | 🔶 sebagian     | ✅ **ada** (api 214 MB, web 98.6 MB)                                                     | Desain siap; tinggal ukur & catat size                         |
+| OpenAPI                | ❌ planned saja | ❌ tidak dikerjakan                                                                      | Sudah terwakili dokumen ini; hindari dua sumber kebenaran      |
+| Time-series            | ❌ planned saja | ❌ tidak dikerjakan                                                                      | Menambah layanan stateful baru                                 |
+| MQTT                   | ❌ planned saja | ❌ tidak dikerjakan                                                                      | Biaya & risiko lifecycle tertinggi                             |
+
+> Klaim bonus yang dipakai di submission adalah daftar **Realisasi** di atas, bukan kolom Rencana.

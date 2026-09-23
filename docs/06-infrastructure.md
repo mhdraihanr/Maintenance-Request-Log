@@ -133,14 +133,23 @@ location /api/ { proxy_pass http://api:3000; }   # proxy ke service api
 location /     { try_files $uri /index.html; }   # SPA fallback
 ```
 
-**Rencana pengukuran size (diisi saat implementasi, lalu dicatat di README):**
+**Hasil pengukuran** (`docker images`, Docker 29.8.0, 2026-09-23):
 
-| Tahap                                  | Perkiraan |
-| -------------------------------------- | --------- |
-| Single-stage (node + devDeps + source) | ~1.1 GB   |
-| Multi-stage (nginx + dist saja)        | ~55 MB    |
+| Tahap                                        | Ukuran      |
+| -------------------------------------------- | ----------- |
+| `web` multi-stage (nginx + dist saja)        | **98.6 MB** |
+| `web` single-stage (node + devDeps + source) | **347 MB**  |
+| `api` multi-stage                            | **214 MB**  |
+| `postgres:16-alpine` (pembanding)            | 420 MB      |
 
-Angka final akan diukur dengan `docker images` dan ditulis di README (ini bagian dari bonus "Multi-stage Dockerfile", dicatat sebagai planned di [07](07-optional-tasks-plan.md)).
+Perkiraan awal (~1.1 GB single-stage, ~55 MB multi-stage) **meleset jauh** dan tidak dipakai —
+angka nyata di atas yang berlaku. Penyebab selisihnya: `nginx:alpine` sendiri sudah ~50 MB,
+sehingga ~55 MB terlalu optimistis; dan `npm ci` + source + devDeps di single-stage ternyata
+~347 MB, bukan ~1.1 GB. Untuk `api`, `node_modules` produksi tetap ikut karena `@node-rs/argon2`
+memuat binary native `.node` yang tidak bisa dibundel — jadi ~214 MB dan itu tidak terhindarkan
+tanpa mengganti algoritma hashing.
+
+Angka ini juga tercatat di [README root](../README.md) sebagai bagian bonus "Multi-stage Dockerfile".
 
 ---
 
